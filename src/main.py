@@ -5,11 +5,9 @@ import time
 import random
 import signal
 
-
 # Definir una función que se ejecuta cuando se recibe la señal de interrupción
 def interrupt_handler(signal, frame):
     exit(0)
-
 
 # Registrar la función como el manejador de la señal de interrupción
 # So the script exits cleanly when interrupted (Ctrl+C) :
@@ -19,21 +17,35 @@ signal.signal(signal.SIGINT, interrupt_handler)
 id = input("Introduce un identificador: ")
 
 # Crear un cliente kazoo y conectarlo con el servidor zookeeper
-client = KazooClient(hosts="127.0.0.1:2181")
-client.start()
+zk = KazooClient(hosts="127.0.0.1:2181")
+zk.start()
 
 # Crear una elección entre las aplicaciones y elegir un líder
-election = Election(client, "/election", id)
+election = Election(zk, "/election", id)
 
 
+# LEADER ONLY --------------------------------------------------------------
 # Definir una función que se ejecuta cuando una aplicación es elegida líder
 def leader_func():
     while True:
-        print('soy lider')
-        # Obtener los hijos de /mediciones
+        print("LEADER :")
+
+        # List the children
+        children = zk.get_children("/mediciones")
+        # Check :
+        print("There are %s children with names %s" % (len(children), children))
+
         # Calcular la media de los valores
+        if len(children) > 0:
+            mean_value = sum(children) / len(children)
+        else :
+            mean_value = 0
+
         # Mostrar la media por consola
+        print("The mean is %s" % mean_value)
+
         # Enviar la media usando requests
+
         time.sleep(5)
 
 
@@ -42,11 +54,27 @@ def election_func():
     # Participar en la elección con el identificador de la aplicación
     election.run(leader_func)
 
-
-# Crear un hilo para ejecutar la función election_func
+# Crear un hilo para ejecutar la función election_func:
+# daemon=True tells Python: "Do not keep the program alive just for this thread."
+# Standard Thread (daemon=False): 
+# If the main program finishes (e.g., reaches the end of the script), 
+# Python will wait for this thread to finish before actually closing the process.
 election_thread = threading.Thread(target=election_func, daemon=True)
+
 # Iniciar el hilo
 election_thread.start()
+
+
+
+# FOLLOWERS AND LEADER ------------------------------------------------------------------
+try:
+    # Ensure a path, create if necessary
+    zk.ensure_path("/mediciones")
+
+    # Create a node with data
+    zk.create(f"/mediciones/{id}", ephemeral=True)
+except:
+    print('ERROR: Node creation exception (maybe already exists)')
 
 # Enviar periódicamente un valor a una subruta de /mediciones con el identificador de la aplicación
 while True:
@@ -54,7 +82,10 @@ while True:
     # value = random.randint(75, 85)
     value = 80.0
 
-    # Actualizar el valor de /values asociado al nodo
+    # Modify the data of a node ...?? -> # Actualizar el valor de /values asociado al nodo
+    zk.set(f"/mediciones/{id}", value)
+    print(f"Node {id}: {value} sent to zk")
 
     # Esperar 5 segundos
     time.sleep(5)
+ 
