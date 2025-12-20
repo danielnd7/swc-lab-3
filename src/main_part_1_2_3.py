@@ -51,7 +51,7 @@ def watch_sampling_period(data, stat):
         print(f"Nuevo valor de SAMPLING_PERIOD: {data.decode('utf-8')}")
         SAMPLING_PERIOD = int(data.decode('utf-8'))
     else:
-        print("Nodo de configuracion eliminado")
+        print("Nodo eliminado")
     print("-----------------------------\n")
     return True  # Mantener el watcher activo
 
@@ -71,7 +71,7 @@ def leader_func():
             print(f"Nuevo valor de API_URL: {data.decode('utf-8')}")
             API_URL = data.decode('utf-8')
         else:
-            print("Nodo de configuracion eliminado")
+            print("Nodo eliminado")
         print("-----------------------------\n")
         return True  # Mantener el watcher activo
 
@@ -95,6 +95,8 @@ def leader_func():
         # Iniciar la barrera para el lider
         barrier = Barrier(zk, barrier_path)
         barrier.create()  # Si la barrera ya existe no pasa nada
+
+        time.sleep(SAMPLING_PERIOD)
 
         print("\nLEADER :")
 
@@ -134,7 +136,6 @@ def leader_func():
         else :
             print("No hay dispositivos activos. No se ha podido enviar el valor a la API")
 
-        time.sleep(SAMPLING_PERIOD)
         print("Abriendo la barrera...")
         barrier.remove() # Libera a todos los followers para la proxima ronda
 
@@ -164,6 +165,9 @@ if not zk.exists(f"/mediciones/{id}"):
 # Create a node with data
     zk.create(f"/mediciones/{id}", ephemeral=True)
 
+# Crear un contador en la ruta /counter
+counter = Counter(zk, "/counter")
+
 # Enviar periódicamente un valor a una subruta de /mediciones con el identificador de la aplicación
 while True:
     # Iniciar la barrera para followers
@@ -184,6 +188,9 @@ while True:
         zk.create(f"/mediciones/{id}", str(value).encode("utf-8"), ephemeral=True)
         print(f"Node {id}: {value} sent to zk (recreated)\n")
 
+    # Incrementar el contador
+    counter += 1
+    print(f"Valor actual del contador: {counter.value}")
 
     # Esperar hasta la siguiente ronda
     print(f"Node {id}: Esperando en la barrera...")
