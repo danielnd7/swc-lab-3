@@ -7,16 +7,16 @@ import random
 import signal
 import requests
 from kazoo.recipe.watchers import ChildrenWatch
+from kazoo.recipe.watchers import DataWatch
 
 # Establecer la direccion de API y ZooKeeper
-API_HOST = os.getenv('API_HOST', "http://127.0.0.1:4001/")
+API_URL = os.getenv('API_URL', "http://127.0.0.1:4001/")
 ZK_HOST = os.getenv('ZK_HOST', "127.0.0.1:2181")
-
+SAMPLING_PERIOD = int(os.getenv('SAMPLING_PERIOD', "5"))
 
 # Definir una función que se ejecuta cuando se recibe la señal de interrupción
 def interrupt_handler(signal, frame):
     exit(0)
-
 
 # Registrar la función como el manejador de la señal de interrupción
 # So the script exits cleanly when interrupted (Ctrl+C) :
@@ -32,11 +32,46 @@ zk.start()
 # Crear una elección entre las aplicaciones y elegir un líder
 election = Election(zk, "/election", id)
 
+# WATCHERS PARA TODOS (tanto leaders como followers) -------------------------------
+# Asegurar que el nodo existe
+zk.ensure_path("/config/sampling_period")
+zk.ensure_path("/config/api_url")
+
+# Funcion watcher
+def watch_sampling_period(data, stat):
+    global SAMPLING_PERIOD # Para que se actualize la variable global
+    print("\n-----------WATCHER-----------")
+    if data:
+        print(f"Nuevo valor de SAMPLING_PERIOD: {data.decode('utf-8')}")
+        SAMPLING_PERIOD = int(data.decode('utf-8'))
+    else:
+        print("Nodo de configuracion eliminado")
+    print("-----------------------------\n")
+    return True  # Mantener el watcher activo
+
+# Registrar el watcher
+DataWatch(zk, "/config/sampling_period", watch_sampling_period)
 
 # LEADER ONLY --------------------------------------------------------------
-
 # Definir una función que se ejecuta cuando una aplicación es elegida líder
 def leader_func():
+
+    # WATCHERS PARA LEADERS ------------------------------
+    # Funcion watcher
+    def watch_api_url(data, stat):
+        global API_URL # Para que se actualize la variable global
+        print("\n-----------WATCHER-----------")
+        if data:
+            print(f"Nuevo valor de API_URL: {data.decode('utf-8')}")
+            API_URL = data.decode('utf-8')
+        else:
+            print("Nodo de configuracion eliminado")
+        print("-----------------------------\n")
+        return True  # Mantener el watcher activo
+
+    # Registrar el watcher
+    DataWatch(zk, "/config/api_url", watch_api_url)
+
 
     # Funcion watcher
     def children_watcher(all_children):
@@ -49,6 +84,7 @@ def leader_func():
     ChildrenWatch(zk, "/mediciones", children_watcher)
 
 
+    # LEADER MAIN FUNCTION --------------------------------
     while True:
         print("LEADER :")
 
@@ -78,7 +114,7 @@ def leader_func():
         # Enviar la media usando requests
         print("Enviando request...")
         try:
-            url = f"{API_HOST}nuevo?dato={mean_value}"
+            url = f"{API_URL}nuevo?dato={mean_value}"
             response = requests.get(url)
 
             if response.status_code == 200:
@@ -89,7 +125,7 @@ def leader_func():
         except Exception as e:
             print("ERROR: No se ha podido enviar el valor a la API : ", e)
 
-        time.sleep(5)
+        time.sleep(SAMPLING_PERIOD)
 
 
 # Definir una función que se encarga de lanzar la parte de la elección
@@ -128,4 +164,4 @@ while True:
     print(f"Node {id}: {value} sent to zk\n")
 
     # Esperar 5 segundos
-    time.sleep(5)
+    time.sleep(SAMPLING_PERIOD)
