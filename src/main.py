@@ -2,8 +2,14 @@ from kazoo.client import KazooClient
 from kazoo.recipe.election import Election
 import threading
 import time
+import os
 import random
 import signal
+import requests
+
+# Establecer la direccion de API y ZooKeeper
+API_HOST = os.getenv('API_HOST', "http://127.0.0.1:4001/")
+ZK_HOST = os.getenv('ZK_HOST', "127.0.0.1:2181")
 
 # Definir una función que se ejecuta cuando se recibe la señal de interrupción
 def interrupt_handler(signal, frame):
@@ -17,7 +23,7 @@ signal.signal(signal.SIGINT, interrupt_handler)
 id = input("Introduce un identificador: ")
 
 # Crear un cliente kazoo y conectarlo con el servidor zookeeper
-zk = KazooClient(hosts="127.0.0.1:2181")
+zk = KazooClient(hosts=ZK_HOST)
 zk.start()
 
 # Crear una elección entre las aplicaciones y elegir un líder
@@ -35,16 +41,37 @@ def leader_func():
         # Check :
         print("There are %s children with names %s" % (len(children), children))
 
-        # Calcular la media de los valores
         if len(children) > 0:
-            mean_value = sum(children) / len(children)
-        else :
+            # Obtener valores de cada nodo hijo
+            values = []
+            for child in children:
+                child_value, stats = zk.get(f"/mediciones/{child}")
+                values.append(int(child_value.decode("utf-8")))
+                print(f"Value of the child {child} considered : ", child_value.decode("utf-8"))
+
+            # Calcular la media de los valores obtenidos
+            mean_value = sum(values) / len(values)
+
+            # Mostrar la media por consola
+            print("The mean is %s" % mean_value)
+
+        else:
+            # En caso de que no haya hijos
             mean_value = 0
 
-        # Mostrar la media por consola
-        print("The mean is %s" % mean_value)
-
         # Enviar la media usando requests
+        print("Enviando request...")
+        try :
+            url = f"{API_HOST}nuevo?dato={mean_value}"
+            response = requests.get(url)
+
+            if response.status_code == 200:
+                print("El nuevo valor fue enviado a la API correctamente!\n")
+            else :
+                print("ERROR: No se ha podido enviar el valor a la API")
+
+        except Exception as e:
+            print("ERROR: No se ha podido enviar el valor a la API : ", e )
 
         time.sleep(5)
 
@@ -79,12 +106,11 @@ except:
 # Enviar periódicamente un valor a una subruta de /mediciones con el identificador de la aplicación
 while True:
     # Generar una nueva medición aleatoria
-    # value = random.randint(75, 85)
-    value = 80.0
+    value = random.randint(75, 85)
 
     # Modify the data of a node ...?? -> # Actualizar el valor de /values asociado al nodo
-    zk.set(f"/mediciones/{id}", value)
-    print(f"Node {id}: {value} sent to zk")
+    zk.set(f"/mediciones/{id}", str(value).encode("utf-8"))
+    print(f"Node {id}: {value} sent to zk\n")
 
     # Esperar 5 segundos
     time.sleep(5)

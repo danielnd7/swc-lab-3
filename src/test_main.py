@@ -1,6 +1,10 @@
+import os
 import requests
-'''
-url = 'http://127.0.0.1:4001/nuevo?dato=99.2' # Definimos la URL a la que queremos hacer la petición
+
+
+
+API_HOST = os.getenv('API_HOST', "http://127.0.0.1:4001/")
+url = f"{API_HOST}nuevo?dato=99.3" # Definimos la URL a la que queremos hacer la petición
 
 print("Sending request...")
 response = requests.get(url) # Hacemos la petición GET con el parámetro y guardamos la respuesta en una variable
@@ -41,3 +45,4 @@ print("There are %s children with names %s" % (len(children), children))
 for child in children:
     value, stats = zk.get(f"/mediciones/{child}")
     print(f"Value of the child {child} : " , value.decode("utf-8"))
+'''
