@@ -1,5 +1,6 @@
 from kazoo.client import KazooClient
 from kazoo.recipe.counter import Counter
+import time
 
 # Conectar a ZooKeeper
 zk = KazooClient(hosts="127.0.0.1:2181")
@@ -17,6 +18,7 @@ print(f"Valor actual del contador: {counter.value}")
 
 # Incrementar varias veces
 for i in range(3):
+    time.sleep(10)
     counter += 1
     print(f"Incremento {i+1}, valor: {counter.value}")
 

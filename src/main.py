@@ -5,9 +5,11 @@ import time
 import random
 import signal
 
+
 # Definir una función que se ejecuta cuando se recibe la señal de interrupción
 def interrupt_handler(signal, frame):
     exit(0)
+
 
 # Registrar la función como el manejador de la señal de interrupción
 # So the script exits cleanly when interrupted (Ctrl+C) :
@@ -22,6 +24,7 @@ client.start()
 
 # Crear una elección entre las aplicaciones y elegir un líder
 election = Election(client, "/election", id)
+
 
 # Definir una función que se ejecuta cuando una aplicación es elegida líder
 def leader_func():
@@ -39,22 +42,19 @@ def election_func():
     # Participar en la elección con el identificador de la aplicación
     election.run(leader_func)
 
-# Crear un hilo para ejecutar la función election_func:
-# daemon=True tells Python: "Do not keep the program alive just for this thread."
-# Standard Thread (daemon=False): 
-# If the main program finishes (e.g., reaches the end of the script), 
-# Python will wait for this thread to finish before actually closing the process.
-election_thread = threading.Thread(target=election_func, daemon=True)
 
+# Crear un hilo para ejecutar la función election_func
+election_thread = threading.Thread(target=election_func, daemon=True)
 # Iniciar el hilo
 election_thread.start()
 
 # Enviar periódicamente un valor a una subruta de /mediciones con el identificador de la aplicación
 while True:
     # Generar una nueva medición aleatoria
-    value = random.randint(75, 85)
+    # value = random.randint(75, 85)
+    value = 80.0
 
     # Actualizar el valor de /values asociado al nodo
- 
+
     # Esperar 5 segundos
- 
+    time.sleep(5)
