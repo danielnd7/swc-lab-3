@@ -108,7 +108,7 @@ while True:
     # Generar una nueva medición aleatoria
     value = random.randint(75, 85)
 
-    # Modify the data of a node ...?? -> # Actualizar el valor de /values asociado al nodo
+    # Modificar el valor en el nodo correspondiente
     zk.set(f"/mediciones/{id}", str(value).encode("utf-8"))
     print(f"Node {id}: {value} sent to zk\n")
 

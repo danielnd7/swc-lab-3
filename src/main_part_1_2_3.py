@@ -1,4 +1,5 @@
 from kazoo.client import KazooClient
+from kazoo.exceptions import NodeExistsError, KazooException, NoNodeError
 from kazoo.recipe.election import Election
 import threading
 import time
@@ -9,6 +10,7 @@ import requests
 from kazoo.recipe.watchers import ChildrenWatch
 from kazoo.recipe.watchers import DataWatch
 from kazoo.recipe.barrier import Barrier
+from kazoo.recipe.counter import Counter
 
 # Establecer la direccion de API y ZooKeeper
 API_URL = os.getenv('API_URL', "http://127.0.0.1:4001/")
@@ -94,13 +96,13 @@ def leader_func():
         barrier = Barrier(zk, barrier_path)
         barrier.create()  # Si la barrera ya existe no pasa nada
 
-        print("LEADER :")
+        print("\nLEADER :")
 
         # Listar los hijos
         children = zk.get_children("/mediciones")
         print("Hay %s dispositivos activos: %s" % (len(children), children))  # Check
 
-        if len(children) > 0:
+        if len(children) > 0: # En caso de que no haya hijos no se envia nada
             # Obtener valores de cada nodo hijo
             values = []
             for child in children:
@@ -114,23 +116,23 @@ def leader_func():
             # Mostrar la media por consola
             print("La media es: %s" % mean_value)
 
-        else:
-            # En caso de que no haya hijos
-            mean_value = 0
+            # Enviar la media usando requests
+            print("Enviando request...")
 
-        # Enviar la media usando requests
-        print("Enviando request...")
-        try:
-            url = f"{API_URL}nuevo?dato={mean_value}"
-            response = requests.get(url)
+            try:
+                url = f"{API_URL}nuevo?dato={mean_value}"
+                response = requests.get(url)
 
-            if response.status_code == 200:
-                print("El nuevo valor fue enviado a la API correctamente!\n")
-            else:
-                print("ERROR: No se ha podido enviar el valor a la API")
+                if response.status_code == 200:
+                    print("El nuevo valor fue enviado a la API correctamente!\n")
+                else:
+                    print("ERROR: No se ha podido enviar el valor a la API")
 
-        except Exception as e:
-            print("ERROR: No se ha podido enviar el valor a la API : ", e)
+            except Exception as e:
+                print("ERROR: No se ha podido enviar el valor a la API : ", e)
+
+        else :
+            print("No hay dispositivos activos. No se ha podido enviar el valor a la API")
 
         time.sleep(SAMPLING_PERIOD)
         print("Abriendo la barrera...")
@@ -154,14 +156,13 @@ election_thread = threading.Thread(target=election_func, daemon=True)
 election_thread.start()
 
 # FOLLOWERS AND LEADER ------------------------------------------------------------------
-try:
-    # Ensure a path, create if necessary
-    zk.ensure_path("/mediciones")
 
-    # Create a node with data
+# Ensure a path, create if necessary
+zk.ensure_path("/mediciones")
+
+if not zk.exists(f"/mediciones/{id}"):
+# Create a node with data
     zk.create(f"/mediciones/{id}", ephemeral=True)
-except:
-    print('ERROR: Node creation exception (maybe already exists)')
 
 # Enviar periódicamente un valor a una subruta de /mediciones con el identificador de la aplicación
 while True:
@@ -172,9 +173,17 @@ while True:
     # Generar una nueva medición aleatoria
     value = random.randint(75, 85)
 
-    # Modify the data of a node ...?? -> # Actualizar el valor de /values asociado al nodo
-    zk.set(f"/mediciones/{id}", str(value).encode("utf-8"))
-    print(f"Node {id}: {value} sent to zk\n")
+    try:
+        # Modificar el valor en el nodo correspondiente
+        zk.set(f"/mediciones/{id}", str(value).encode("utf-8"))
+        print(f"Node {id}: {value} sent to zk\n")
+
+    except NoNodeError:
+        # Node was deleted by ZooKeeper - recreate it
+        print(f"Node {id}: Nodo fue eliminado por un fallo de conexion, recreando...")
+        zk.create(f"/mediciones/{id}", str(value).encode("utf-8"), ephemeral=True)
+        print(f"Node {id}: {value} sent to zk (recreated)\n")
+
 
     # Esperar hasta la siguiente ronda
     print(f"Node {id}: Esperando en la barrera...")
