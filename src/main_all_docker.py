@@ -4,6 +4,7 @@ from kazoo.recipe.election import Election
 import threading
 import time
 import os
+import sys
 import random
 import signal
 import requests
@@ -12,11 +13,24 @@ from kazoo.recipe.watchers import DataWatch
 from kazoo.recipe.barrier import Barrier
 from kazoo.recipe.counter import Counter
 
+#---------------------------------------------
+# VERSION PARA DOCKER (sin input())
+#---------------------------------------------
+
 # Establecer la direccion de API y ZooKeeper
 API_URL = os.getenv('API_URL', "http://127.0.0.1:4000/")
 ZK_HOST = os.getenv('ZK_HOST', "127.0.0.1:2181")
 SAMPLING_PERIOD = int(os.getenv('SAMPLING_PERIOD', "5"))
 barrier_path = "/barrier"
+
+# El primer argumento (sys.argv[0]) es el nombre del script.
+# El segundo (sys.argv[1]) sera el ID que pases desde Docker.
+# Crear un identificador para la aplicación
+if len(sys.argv) > 1:
+    id = sys.argv[1]
+else:
+    print("Error: Se requiere un identificador como argumento.")
+    sys.exit(1)
 
 
 # Definir una función que se ejecuta cuando se recibe la señal de interrupción
@@ -26,9 +40,6 @@ def interrupt_handler(signal, frame):
 # Registrar la función como el manejador de la señal de interrupción
 # So the script exits cleanly when interrupted (Ctrl+C) :
 signal.signal(signal.SIGINT, interrupt_handler)
-
-# Crear un identificador para la aplicación
-id = input("Introduce un identificador: ")
 
 # Crear un cliente kazoo y conectarlo con el servidor zookeeper
 zk = KazooClient(hosts=ZK_HOST)
