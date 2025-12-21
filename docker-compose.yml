@@ -8,9 +8,6 @@ services:
     environment:
       ZOO_MY_ID: 1
       ZOO_STANDALONE_ENABLED: "true"
-    #volumes:
-    #  - ./zk_data/zookeeper/data:/data
-    #  - ./zk_data/zookeeper/datalog:/datalog
     healthcheck:
       test: [ "CMD", "nc", "-z", "localhost", "2181" ]
       interval: 5s
