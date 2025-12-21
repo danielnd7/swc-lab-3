@@ -96,6 +96,7 @@ def leader_func():
         barrier = Barrier(zk, barrier_path)
         barrier.create()  # Si la barrera ya existe no pasa nada
 
+        # Se espera el periodo correspondiente a una ronda de mediciones
         time.sleep(SAMPLING_PERIOD)
 
         print("\nLEADER :")
