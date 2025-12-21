@@ -7,5 +7,5 @@
 # Except src/main_part_1_2_3.py
 !src/
 src/*
-!src/main_part_1_2_3.py
+!src/main_all_docker.py
 

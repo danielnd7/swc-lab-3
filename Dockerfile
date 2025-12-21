@@ -11,11 +11,11 @@ WORKDIR /app
 RUN pip install kazoo requests
 
 # Copy the source code
-COPY src/main_part_1_2_3.py .
+COPY src/main_all_docker.py .
 
 # Configurar el punto de entrada para permitir el paso de argumentos por línea de comandos
 # Esto permite que Docker Compose le pase el ID único a cada instancia [cite: 124, 126]
-ENTRYPOINT ["python", "main_part_1_2_3.py"]
+ENTRYPOINT ["python", "main_all_docker.py"]
 
 # Define environment variable
 # Valores por defecto para el entorno de Docker
