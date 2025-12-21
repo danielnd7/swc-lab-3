@@ -20,14 +20,44 @@ services:
     networks:
       - app-network
 
-  measuring-device:
+  measuring-device-1:
     image: danielnem/measuring-device:v2
-    container_name: measuring-device
+    container_name: measuring-device-1
     restart: always
     depends_on:
       zookeeper:
         condition: service_healthy
     command: [ "1" ]
+    environment:
+      ZK_HOST: zookeeper:2181
+      API_URL: http://web-api:80/
+      SAMPLING_PERIOD: 5
+    networks:
+      - app-network
+
+  measuring-device-2:
+    image: danielnem/measuring-device:v2
+    container_name: measuring-device-2
+    restart: always
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    command: [ "2" ]
+    environment:
+      ZK_HOST: zookeeper:2181
+      API_URL: http://web-api:80/
+      SAMPLING_PERIOD: 5
+    networks:
+      - app-network
+
+  measuring-device-3:
+    image: danielnem/measuring-device:v2
+    container_name: measuring-device-3
+    restart: always
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    command: [ "3" ]
     environment:
       ZK_HOST: zookeeper:2181
       API_URL: http://web-api:80/
